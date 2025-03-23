@@ -165,8 +165,15 @@ def create_fractal_flow(size, palette, complexity, randomness, seed):
     # Initialize the image data
     data = np.zeros((size, size))
     
+    # Ensure complexity is a valid number
+    try:
+        iterations = int(float(complexity) * 10)
+    except (ValueError, TypeError):
+        # Default to a safe value if complexity is invalid
+        iterations = 10
+    
     # Apply fractal algorithm
-    for i in range(complexity * 10):
+    for i in range(iterations):
         # Create random coefficients
         a = np.random.uniform(-2, 2) * randomness
         b = np.random.uniform(-2, 2) * randomness
