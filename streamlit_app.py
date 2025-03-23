@@ -165,9 +165,9 @@ def create_fractal_flow(size, palette, complexity, randomness, seed):
     # Initialize the image data
     data = np.zeros((size, size))
     
-    # Ensure complexity is a valid number
+    # Ensure complexity is a valid number and convert to integer
     try:
-        iterations = int(float(complexity) * 10)
+        iterations = max(1, int(float(complexity) * 10))
     except (ValueError, TypeError):
         # Default to a safe value if complexity is invalid
         iterations = 10
@@ -875,7 +875,8 @@ def create_animated_cellular_automaton(size, palette, complexity, randomness, se
         if animation_type == "Parameter Shift":
             # Gradually change parameters
             frame_complexity = complexity * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi))
-            frame_randomness = randomness * (1 + 0.3 * np.sin(frame / frames * 2 * np.pi + np.pi/2))
+            # Ensure randomness stays between 0 and 1
+            frame_randomness = max(0.01, min(0.99, randomness * (1 + 0.3 * np.sin(frame / frames * 2 * np.pi + np.pi/2))))
             # Rule changes with frame
             rule_num = (int(frame_complexity * 10) + frame) % 256
         elif animation_type == "Color Shift":
@@ -914,7 +915,10 @@ def create_animated_cellular_automaton(size, palette, complexity, randomness, se
         else:
             # For other animation types, create a new grid each frame
             np.random.seed(frame_seed + frame)
-            grid = np.random.choice([0, 1], size=(size, size), p=[1-frame_randomness, frame_randomness])
+            # Ensure probabilities sum to 1 and are non-negative
+            prob_0 = max(0.01, min(0.99, 1-frame_randomness))
+            prob_1 = 1 - prob_0
+            grid = np.random.choice([0, 1], size=(size, size), p=[prob_0, prob_1])
             
             # Evolve the cellular automaton
             for _ in range(size // 2):
