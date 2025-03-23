@@ -94,18 +94,21 @@ with st.sidebar:
     
     # Animation Options
     st.subheader("Animation Options")
-    enable_animation = st.checkbox("Enable Animation", value=False)
+    enable_animation = st.checkbox("Enable Animation (GIF)", value=False)
     if enable_animation:
-        animation_speed = st.slider("Animation Speed", 0.1, 2.0, 0.5, 0.1)
-        animation_frames = st.slider("Number of Frames", 10, 60, 30)
+        animation_frames = st.slider("Animation Frames", min_value=5, max_value=30, value=15, step=5)
+        animation_speed = st.slider("Animation Speed", min_value=0.1, max_value=2.0, value=1.0, step=0.1)
         animation_type = st.selectbox(
             "Animation Type",
             ["Parameter Shift", "Color Shift", "Zoom Effect"]
         )
     
     # Live Animation Option
-    live_animation = st.checkbox("Live Animation (continuously changing)", value=False, 
-                               help="Art will continuously change in real-time")
+    live_animation = st.checkbox("Enable Live Animation", value=False, 
+                               help="Continuously change the artwork in real-time")
+    
+    if live_animation and enable_animation:
+        st.warning("Please choose either GIF animation or live animation, not both.")
     
     # Generate button
     generate_button = st.button("Generate Artwork", use_container_width=True)
@@ -405,28 +408,53 @@ def create_cellular_automaton(size, palette, complexity, randomness, seed):
     
     return img
 
+# Animation Functions
+
 # Animated Fractal Flow generator
-def create_animated_fractal_flow(size, palette, complexity, randomness, seed, frames=30, animation_type="Parameter Shift", animation_speed=0.5):
+def create_animated_fractal_flow(size, palette, complexity, randomness, seed, frames=20, animation_type="Parameter Shift", animation_speed=0.5):
+    np.random.seed(seed)
     images = []
     
+    # Calculate frame duration (in ms) based on animation speed
+    frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
+    
+    # Generate frames
     for frame in range(frames):
-        # Modify parameters based on frame and animation type
-        frame_seed = seed
-        frame_palette = palette.copy()
-        
+        # Modify parameters based on animation type
         if animation_type == "Parameter Shift":
-            # Gradually change parameters
+            # Gradually shift parameters
             frame_complexity = complexity * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi))
-            frame_randomness = randomness * (1 + 0.3 * np.sin(frame / frames * 2 * np.pi + np.pi/2))
+            frame_randomness = randomness * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi + np.pi/4))
+            frame_palette = palette
+            frame_seed = seed
+        
         elif animation_type == "Color Shift":
-            # Rotate colors in palette
+            # Shift colors in the palette
             frame_complexity = complexity
             frame_randomness = randomness
-            # Shift palette colors
-            frame_palette = palette[frame % len(palette):] + palette[:frame % len(palette)]
-        else:  # Zoom Effect
+            
+            # Convert hex colors to RGB, shift hue, and convert back to hex
+            frame_palette = []
+            for color in palette:
+                # Convert hex to RGB
+                r, g, b = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                
+                # Simple color shift (rotate RGB values)
+                shift_amount = frame / frames
+                r_new = int((r + shift_amount * 255) % 255)
+                g_new = int((g + shift_amount * 255) % 255)
+                b_new = int((b + shift_amount * 255) % 255)
+                
+                # Convert back to hex
+                frame_palette.append(f'#{r_new:02x}{g_new:02x}{b_new:02x}')
+            
+            frame_seed = seed
+        
+        elif animation_type == "Zoom Effect":
+            # Keep same parameters but change seed for a "zoom" effect
             frame_complexity = complexity
             frame_randomness = randomness
+            frame_palette = palette
             frame_seed = seed + frame  # Change seed for zoom effect
         
         # Create the frame
@@ -434,196 +462,286 @@ def create_animated_fractal_flow(size, palette, complexity, randomness, seed, fr
         images.append(img)
     
     # Create a temporary file for the GIF
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.gif') as tmp_file:
-        # Save as animated GIF
-        images[0].save(
-            tmp_file.name,
-            save_all=True,
-            append_images=images[1:],
-            optimize=False,
-            duration=int(100 / animation_speed),  # Duration between frames in ms
-            loop=0  # Loop forever
-        )
+    temp_file = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
     
-    return tmp_file.name
+    # Save the frames as a GIF
+    images[0].save(
+        temp_file.name,
+        save_all=True,
+        append_images=images[1:],
+        optimize=False,
+        duration=frame_duration,
+        loop=0
+    )
+    
+    return temp_file.name
 
 # Animated Particle System generator
-def create_animated_particle_system(size, palette, complexity, randomness, seed, frames=30, animation_type="Parameter Shift", animation_speed=0.5):
+def create_animated_particle_system(size, palette, complexity, randomness, seed, frames=20, animation_type="Parameter Shift", animation_speed=0.5):
+    np.random.seed(seed)
     images = []
     
-    # Convert palette hex colors to RGB
-    colors = [tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4)) for color in palette]
+    # Calculate frame duration (in ms) based on animation speed
+    frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
     
+    # Generate frames
     for frame in range(frames):
-        # Create a blank image
-        img = Image.new('RGB', (size, size), color=(0, 0, 0))
-        draw = ImageDraw.Draw(img)
-        
         # Modify parameters based on animation type
-        frame_seed = seed + frame
-        np.random.seed(frame_seed)
-        frame_colors = colors.copy()
-        
         if animation_type == "Parameter Shift":
-            # Gradually change parameters
+            # Gradually shift parameters
             frame_complexity = complexity * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi))
-            frame_randomness = randomness * (1 + 0.3 * np.sin(frame / frames * 2 * np.pi + np.pi/2))
+            frame_randomness = randomness * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi + np.pi/4))
+            frame_palette = palette
+            frame_seed = seed
+        
         elif animation_type == "Color Shift":
-            # Rotate colors
+            # Shift colors in the palette
             frame_complexity = complexity
             frame_randomness = randomness
-            frame_colors = colors[frame % len(colors):] + colors[:frame % len(colors)]
-        else:  # Zoom Effect
-            frame_complexity = complexity
-            frame_randomness = randomness
-            # Adjust size for zoom effect
-            zoom_factor = 1 + 0.2 * np.sin(frame / frames * 2 * np.pi)
-        
-        # Number of particles
-        num_particles = int(frame_complexity * 500)
-        
-        # Generate particles with animation
-        for i in range(num_particles):
-            # Initial position with animation
-            angle = 2 * np.pi * i / num_particles + (frame / frames * 2 * np.pi)
-            radius_factor = 0.8 + 0.2 * np.sin(frame / frames * 4 * np.pi + i * 0.1)
             
-            if animation_type == "Zoom Effect":
-                x = size // 2 + int((np.cos(angle) * size // 3) * zoom_factor * radius_factor)
-                y = size // 2 + int((np.sin(angle) * size // 3) * zoom_factor * radius_factor)
-            else:
-                x = np.random.randint(0, size)
-                y = np.random.randint(0, size)
-            
-            # Particle size
-            particle_radius = np.random.randint(1, 5 + int(frame_complexity))
-            
-            # Color
-            color = random.choice(frame_colors)
-            
-            # Draw the particle
-            draw.ellipse((x-particle_radius, y-particle_radius, x+particle_radius, y+particle_radius), fill=color)
-            
-            # Add connecting lines with probability based on randomness
-            if np.random.random() < frame_randomness:
-                # Find another random point
-                x2 = np.random.randint(0, size)
-                y2 = np.random.randint(0, size)
+            # Convert hex colors to RGB, shift hue, and convert back to hex
+            frame_palette = []
+            for color in palette:
+                # Convert hex to RGB
+                r, g, b = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
                 
-                # Draw a line if not too far away
-                dist = np.sqrt((x2 - x)**2 + (y2 - y)**2)
-                if dist < size / 4:
-                    # Fade the color based on distance
-                    alpha = int(255 * (1 - dist / (size / 4)))
-                    line_color = tuple(max(0, min(255, int(c * alpha / 255))) for c in color)
-                    draw.line((x, y, x2, y2), fill=line_color, width=1)
+                # Simple color shift (rotate RGB values)
+                shift_amount = frame / frames
+                r_new = int((r + shift_amount * 255) % 255)
+                g_new = int((g + shift_amount * 255) % 255)
+                b_new = int((b + shift_amount * 255) % 255)
+                
+                # Convert back to hex
+                frame_palette.append(f'#{r_new:02x}{g_new:02x}{b_new:02x}')
+            
+            frame_seed = seed
         
+        elif animation_type == "Zoom Effect":
+            # Keep same parameters but change seed for a "zoom" effect
+            frame_complexity = complexity
+            frame_randomness = randomness
+            frame_palette = palette
+            frame_seed = seed + frame  # Change seed for zoom effect
+        
+        # Create the frame
+        img = create_particle_system(size, frame_palette, frame_complexity, frame_randomness, frame_seed)
         images.append(img)
     
     # Create a temporary file for the GIF
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.gif') as tmp_file:
-        # Save as animated GIF
-        images[0].save(
-            tmp_file.name,
-            save_all=True,
-            append_images=images[1:],
-            optimize=False,
-            duration=int(100 / animation_speed),
-            loop=0
-        )
+    temp_file = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
     
-    return tmp_file.name
+    # Save the frames as a GIF
+    images[0].save(
+        temp_file.name,
+        save_all=True,
+        append_images=images[1:],
+        optimize=False,
+        duration=frame_duration,
+        loop=0
+    )
+    
+    return temp_file.name
 
 # Animated Wave Interference generator
-def create_animated_wave_interference(size, palette, complexity, randomness, seed, frames=30, animation_type="Parameter Shift", animation_speed=0.5):
+def create_animated_wave_interference(size, palette, complexity, randomness, seed, frames=20, animation_type="Parameter Shift", animation_speed=0.5):
+    np.random.seed(seed)
     images = []
     
+    # Calculate frame duration (in ms) based on animation speed
+    frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
+    
+    # Generate frames
     for frame in range(frames):
         # Modify parameters based on animation type
-        frame_seed = seed
-        frame_palette = palette.copy()
-        
         if animation_type == "Parameter Shift":
-            # Gradually change parameters
+            # Gradually shift parameters
             frame_complexity = complexity * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi))
-            frame_randomness = randomness * (1 + 0.3 * np.sin(frame / frames * 2 * np.pi + np.pi/2))
-            time_factor = frame / frames * 2 * np.pi  # Time evolution factor
+            frame_randomness = randomness * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi + np.pi/4))
+            frame_palette = palette
+            frame_seed = seed
+        
         elif animation_type == "Color Shift":
+            # Shift colors in the palette
             frame_complexity = complexity
             frame_randomness = randomness
-            # Shift palette colors
-            frame_palette = palette[frame % len(palette):] + palette[:frame % len(palette)]
-            time_factor = 0
-        else:  # Zoom Effect
+            
+            # Convert hex colors to RGB, shift hue, and convert back to hex
+            frame_palette = []
+            for color in palette:
+                # Convert hex to RGB
+                r, g, b = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                
+                # Simple color shift (rotate RGB values)
+                shift_amount = frame / frames
+                r_new = int((r + shift_amount * 255) % 255)
+                g_new = int((g + shift_amount * 255) % 255)
+                b_new = int((b + shift_amount * 255) % 255)
+                
+                # Convert back to hex
+                frame_palette.append(f'#{r_new:02x}{g_new:02x}{b_new:02x}')
+            
+            frame_seed = seed
+        
+        elif animation_type == "Zoom Effect":
+            # Keep same parameters but change seed for a "zoom" effect
             frame_complexity = complexity
             frame_randomness = randomness
-            frame_seed = seed + frame
-            time_factor = 0
+            frame_palette = palette
+            frame_seed = seed + frame  # Change seed for zoom effect
         
-        np.random.seed(frame_seed)
-        
-        # Create a grid of coordinates
-        x = np.linspace(-5, 5, size)
-        y = np.linspace(-5, 5, size)
-        X, Y = np.meshgrid(x, y)
-        
-        # Initialize the wave data
-        data = np.zeros((size, size))
-        
-        # Generate wave sources
-        num_sources = int(frame_complexity)
-        for i in range(num_sources):
-            # Random position for wave source
-            source_x = np.random.uniform(-5, 5)
-            source_y = np.random.uniform(-5, 5)
-            
-            # Calculate distance from each point to the source
-            distance = np.sqrt((X - source_x)**2 + (Y - source_y)**2)
-            
-            # Wave amplitude and frequency (with randomness and time evolution)
-            amplitude = np.random.uniform(0.5, 1.0)
-            frequency = np.random.uniform(0.5, 1.5) * (1 + frame_randomness)
-            phase = np.random.uniform(0, 2*np.pi) + time_factor  # Phase changes with time
-            
-            # Add this wave to the data
-            data += amplitude * np.sin(distance * frequency + phase)
-        
-        # Normalize the data
-        data = (data - np.min(data)) / (np.max(data) - np.min(data))
-        
-        # Create a colormap from the palette
-        cmap = create_colormap(frame_palette)
-        
-        # Create a figure and plot
-        plt.figure(figsize=(10, 10), dpi=100)
-        plt.imshow(data, cmap=cmap)
-        plt.axis('off')
-        
-        # Convert plot to image
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', bbox_inches='tight', pad_inches=0)
-        buf.seek(0)
-        img = Image.open(buf)
-        plt.close()
-        
+        # Create the frame
+        img = create_wave_interference(size, frame_palette, frame_complexity, frame_randomness, frame_seed)
         images.append(img)
     
     # Create a temporary file for the GIF
-    with tempfile.NamedTemporaryFile(delete=False, suffix='.gif') as tmp_file:
-        # Save as animated GIF
-        images[0].save(
-            tmp_file.name,
-            save_all=True,
-            append_images=images[1:],
-            optimize=False,
-            duration=int(100 / animation_speed),
-            loop=0
-        )
+    temp_file = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
     
-    return tmp_file.name
+    # Save the frames as a GIF
+    images[0].save(
+        temp_file.name,
+        save_all=True,
+        append_images=images[1:],
+        optimize=False,
+        duration=frame_duration,
+        loop=0
+    )
+    
+    return temp_file.name
 
 # Animated Color Field generator
-def create_animated_color_field(size, palette, complexity, randomness, seed, frames=30, animation_type="Parameter Shift", animation_speed=0.5):
+def create_animated_color_field(size, palette, complexity, randomness, seed, frames=20, animation_type="Parameter Shift", animation_speed=0.5):
+    np.random.seed(seed)
+    images = []
+    
+    # Calculate frame duration (in ms) based on animation speed
+    frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
+    
+    # Generate frames
+    for frame in range(frames):
+        # Modify parameters based on animation type
+        if animation_type == "Parameter Shift":
+            # Gradually shift parameters
+            frame_complexity = complexity * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi))
+            frame_randomness = randomness * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi + np.pi/4))
+            frame_palette = palette
+            frame_seed = seed
+        
+        elif animation_type == "Color Shift":
+            # Shift colors in the palette
+            frame_complexity = complexity
+            frame_randomness = randomness
+            
+            # Convert hex colors to RGB, shift hue, and convert back to hex
+            frame_palette = []
+            for color in palette:
+                # Convert hex to RGB
+                r, g, b = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                
+                # Simple color shift (rotate RGB values)
+                shift_amount = frame / frames
+                r_new = int((r + shift_amount * 255) % 255)
+                g_new = int((g + shift_amount * 255) % 255)
+                b_new = int((b + shift_amount * 255) % 255)
+                
+                # Convert back to hex
+                frame_palette.append(f'#{r_new:02x}{g_new:02x}{b_new:02x}')
+            
+            frame_seed = seed
+        
+        elif animation_type == "Zoom Effect":
+            # Keep same parameters but change seed for a "zoom" effect
+            frame_complexity = complexity
+            frame_randomness = randomness
+            frame_palette = palette
+            frame_seed = seed + frame  # Change seed for zoom effect
+        
+        # Create the frame
+        img = create_color_field(size, frame_palette, frame_complexity, frame_randomness, frame_seed)
+        images.append(img)
+    
+    # Create a temporary file for the GIF
+    temp_file = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
+    
+    # Save the frames as a GIF
+    images[0].save(
+        temp_file.name,
+        save_all=True,
+        append_images=images[1:],
+        optimize=False,
+        duration=frame_duration,
+        loop=0
+    )
+    
+    return temp_file.name
+
+# Animated Cellular Automaton generator
+def create_animated_cellular_automaton(size, palette, complexity, randomness, seed, frames=20, animation_type="Parameter Shift", animation_speed=0.5):
+    np.random.seed(seed)
+    images = []
+    
+    # Calculate frame duration (in ms) based on animation speed
+    frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
+    
+    # Generate frames
+    for frame in range(frames):
+        # Modify parameters based on animation type
+        if animation_type == "Parameter Shift":
+            # Gradually shift parameters
+            frame_complexity = complexity * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi))
+            frame_randomness = randomness * (1 + 0.2 * np.sin(frame / frames * 2 * np.pi + np.pi/4))
+            frame_palette = palette
+            frame_seed = seed
+        
+        elif animation_type == "Color Shift":
+            # Shift colors in the palette
+            frame_complexity = complexity
+            frame_randomness = randomness
+            
+            # Convert hex colors to RGB, shift hue, and convert back to hex
+            frame_palette = []
+            for color in palette:
+                # Convert hex to RGB
+                r, g, b = tuple(int(color.lstrip('#')[i:i+2], 16) for i in (0, 2, 4))
+                
+                # Simple color shift (rotate RGB values)
+                shift_amount = frame / frames
+                r_new = int((r + shift_amount * 255) % 255)
+                g_new = int((g + shift_amount * 255) % 255)
+                b_new = int((b + shift_amount * 255) % 255)
+                
+                # Convert back to hex
+                frame_palette.append(f'#{r_new:02x}{g_new:02x}{b_new:02x}')
+            
+            frame_seed = seed
+        
+        elif animation_type == "Zoom Effect":
+            # Keep same parameters but change seed for a "zoom" effect
+            frame_complexity = complexity
+            frame_randomness = randomness
+            frame_palette = palette
+            frame_seed = seed + frame  # Change seed for zoom effect
+        
+        # Create the frame
+        img = create_cellular_automaton(size, frame_palette, frame_complexity, frame_randomness, frame_seed)
+        images.append(img)
+    
+    # Create a temporary file for the GIF
+    temp_file = tempfile.NamedTemporaryFile(suffix='.gif', delete=False)
+    
+    # Save the frames as a GIF
+    images[0].save(
+        temp_file.name,
+        save_all=True,
+        append_images=images[1:],
+        optimize=False,
+        duration=frame_duration,
+        loop=0
+    )
+    
+    return temp_file.name
+
+# Animated Color Field generator
+def create_animated_color_field(size, palette, complexity, randomness, seed, frames=20, animation_type="Parameter Shift", animation_speed=0.5):
     images = []
     
     # Convert hex colors to RGB
@@ -705,7 +823,7 @@ def create_animated_color_field(size, palette, complexity, randomness, seed, fra
                 shape_draw.rectangle([x0, y0, x0+width, y0+height], fill=fill_color)
                 # Rotate the shape
                 shape_img = shape_img.rotate(rotation_angle + (frame / frames * 360 if animation_type == "Parameter Shift" else 0), 
-                                         center=(x0+width//2, y0+height//2), resample=Image.BICUBIC)
+                                          center=(x0+width//2, y0+height//2), resample=Image.BICUBIC)
             else:
                 # Draw ellipse
                 shape_draw.ellipse([x0, y0, x0+width, y0+height], fill=fill_color)
