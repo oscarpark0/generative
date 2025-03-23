@@ -425,8 +425,16 @@ def create_animated_fractal_flow(size, palette, complexity, randomness, seed, fr
     # Calculate frame duration (in ms) based on animation speed
     frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
     
+    # Create a progress bar
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     # Generate frames
     for frame in range(frames):
+        # Update progress bar
+        progress = int((frame / frames) * 100)
+        progress_bar.progress(progress)
+        status_text.text(f"Generating frame {frame+1}/{frames} ({progress}%)")
         # Modify parameters based on animation type
         if animation_type == "Parameter Shift":
             # Gradually shift parameters
@@ -491,8 +499,16 @@ def create_animated_particle_system(size, palette, complexity, randomness, seed,
     # Calculate frame duration (in ms) based on animation speed
     frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
     
+    # Create a progress bar
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     # Generate frames
     for frame in range(frames):
+        # Update progress bar
+        progress = int((frame / frames) * 100)
+        progress_bar.progress(progress)
+        status_text.text(f"Generating frame {frame+1}/{frames} ({progress}%)")
         # Modify parameters based on animation type
         if animation_type == "Parameter Shift":
             # Gradually shift parameters
@@ -557,8 +573,16 @@ def create_animated_wave_interference(size, palette, complexity, randomness, see
     # Calculate frame duration (in ms) based on animation speed
     frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
     
+    # Create a progress bar
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     # Generate frames
     for frame in range(frames):
+        # Update progress bar
+        progress = int((frame / frames) * 100)
+        progress_bar.progress(progress)
+        status_text.text(f"Generating frame {frame+1}/{frames} ({progress}%)")
         # Modify parameters based on animation type
         if animation_type == "Parameter Shift":
             # Gradually shift parameters
@@ -623,8 +647,16 @@ def create_animated_color_field(size, palette, complexity, randomness, seed, fra
     # Calculate frame duration (in ms) based on animation speed
     frame_duration = int(100 / animation_speed)  # Faster speed = shorter duration
     
+    # Create a progress bar
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     # Generate frames
     for frame in range(frames):
+        # Update progress bar
+        progress = int((frame / frames) * 100)
+        progress_bar.progress(progress)
+        status_text.text(f"Generating frame {frame+1}/{frames} ({progress}%)")
         # Modify parameters based on animation type
         if animation_type == "Parameter Shift":
             # Gradually shift parameters
@@ -867,7 +899,15 @@ def create_animated_cellular_automaton(size, palette, complexity, randomness, se
     np.random.seed(seed)
     initial_grid = np.random.choice([0, 1], size=(size, size), p=[1-randomness, randomness])
     
+    # Create a progress bar
+    progress_bar = st.progress(0)
+    status_text = st.empty()
+    
     for frame in range(frames):
+        # Update progress bar
+        progress = int((frame / frames) * 100)
+        progress_bar.progress(progress)
+        status_text.text(f"Generating frame {frame+1}/{frames} ({progress}%)")
         # Modify parameters based on animation type
         frame_seed = seed
         frame_colors = colors.copy()
@@ -979,6 +1019,9 @@ def generate_artwork():
     # Get the color palette
     palette = get_color_palette(color_scheme)
     
+    # Create a status container for generation progress
+    status_container = st.empty()
+    
     # Handle live animation (continuously changing)
     if live_animation and not enable_animation:
         # Create a placeholder for the live animation
@@ -1038,9 +1081,9 @@ def generate_artwork():
         # Create a placeholder for the animation
         animation_placeholder = st.empty()
         
-        # Show loading message
-        with animation_placeholder.container():
-            st.info(f"Generating {animation_frames} frame animation... Please wait.")
+        # Show loading message in the main container
+        with status_container.container():
+            st.info(f"Preparing to generate {animation_frames} frame {art_style} animation...")
         
         # Choose the animation function based on selected style
         if art_style == "Fractal Flow":
@@ -1078,8 +1121,11 @@ def generate_artwork():
         with open(animation_file, "rb") as f:
             animation_bytes = f.read()
         
+        # Clear progress indicators
+        status_container.empty()
+        
         # Replace the loading message with the animation
-        animation_placeholder.image(animation_bytes)
+        animation_placeholder.image(animation_bytes, caption=f"{art_style} Animation", use_container_width=True)
         
         # Download button for animation
         fn = f"animated_{art_style}_{seed}.gif"
@@ -1121,17 +1167,49 @@ def generate_artwork():
     
     # Handle static image generation (no animation)
     else:
+        # Show generation status
+        with status_container.container():
+            status_text = st.empty()
+            status_text.info(f"Generating {art_style} artwork...")
+            progress_bar = st.progress(0)
+            
+            # Update progress to show we're starting
+            progress_bar.progress(25)
+        
         # Choose the generation function based on selected style
         if art_style == "Fractal Flow":
+            # Update progress
+            with status_container.container():
+                progress_bar.progress(50)
             img = create_fractal_flow(resolution, palette, complexity, randomness, seed)
         elif art_style == "Particle System":
+            # Update progress
+            with status_container.container():
+                progress_bar.progress(50)
             img = create_particle_system(resolution, palette, complexity, randomness, seed)
         elif art_style == "Wave Interference":
+            # Update progress
+            with status_container.container():
+                progress_bar.progress(50)
             img = create_wave_interference(resolution, palette, complexity, randomness, seed)
         elif art_style == "Color Field":
+            # Update progress
+            with status_container.container():
+                progress_bar.progress(50)
             img = create_color_field(resolution, palette, complexity, randomness, seed)
         elif art_style == "Cellular Automaton":
+            # Update progress
+            with status_container.container():
+                progress_bar.progress(50)
             img = create_cellular_automaton(resolution, palette, complexity, randomness, seed)
+            
+        # Update progress to show completion
+        with status_container.container():
+            progress_bar.progress(100)
+            status_text.success("Artwork generated successfully!")
+            # Clear the status after a brief delay
+            time.sleep(0.5)
+            status_container.empty()
         
         # Display the image
         col1, col2, col3 = st.columns([1, 5, 1])
