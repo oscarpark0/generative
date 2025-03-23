@@ -407,7 +407,7 @@ def generate_artwork():
     # Display the image
     col1, col2, col3 = st.columns([1, 5, 1])
     with col2:
-        st.image(img, use_column_width=True)
+        st.image(img, use_container_width=True)
     
     # Create a buffer to save the image
     buf = io.BytesIO()
@@ -477,7 +477,8 @@ with col1:
         # Show sample preview images
         st.write("### Style Examples:")
         st.image("https://raw.githubusercontent.com/streamlit/streamlit/master/examples/data/streamlit-logo-secondary-colormark-darktext.png", 
-                 caption="Sample image - your generated art will appear here")
+                 caption="Sample image - your generated art will appear here",
+                 use_container_width=True)
 
 with col2:
     # Information and tips
