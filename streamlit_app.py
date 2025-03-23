@@ -268,7 +268,13 @@ def create_wave_interference(size, palette, complexity, randomness, seed):
     data = np.zeros((size, size))
     
     # Generate wave sources
-    num_sources = complexity
+    # Ensure complexity is converted to a valid integer
+    try:
+        num_sources = max(1, int(float(complexity)))
+    except (ValueError, TypeError):
+        # Default to a safe value if complexity is invalid
+        num_sources = 5
+        
     for _ in range(num_sources):
         # Random position for wave source
         source_x = np.random.uniform(-5, 5)
